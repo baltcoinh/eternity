@@ -38,7 +38,7 @@ else
   CXXFLAGS_overridden=no
 fi
 AC_PROG_CXX
-m4_ifdef([AC_PROG_OBJCXX],[AC_PROG_OBJCXX])
+dnl ifdef([AC_PROG_OBJCXX],[AC_PROG_OBJCXX])
 
 dnl By default, libtool for mingw refuses to link static libs into a dll for
 dnl fear of mixing pic/non-pic objects, and import/export complications. Since
@@ -48,6 +48,17 @@ case $host in
      lt_cv_deplibs_check_method="pass_all"
   ;;
 esac
+dnl Require C++11 compiler (no GNU extensions)
+AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+
+dnl Unless the user specified OBJCXX, force it to be the same as CXX. This ensures
+dnl that we get the same -std flags for both.
+m4_ifdef([AC_PROG_OBJCXX],[
+if test "x${OBJCXX+set}" = "x"; then
+  OBJCXX="${CXX}"
+fi
+AC_PROG_OBJCXX
+])
 dnl Libtool init checks.
 LT_INIT([pic-only])
 
@@ -58,11 +69,17 @@ AC_PATH_TOOL(STRIP, strip)
 AC_PATH_TOOL(GCOV, gcov)
 AC_PATH_PROG(LCOV, lcov)
 AC_PATH_PROG(JAVA, java)
+AC_PATH_PROGS([PYTHON], [python3 python2.7 python2 python])
 AC_PATH_PROG(GENHTML, genhtml)
 AC_PATH_PROG([GIT], [git])
 AC_PATH_PROG(CCACHE,ccache)
 AC_PATH_PROG(XGETTEXT,xgettext)
 AC_PATH_PROG(HEXDUMP,hexdump)
+AC_PATH_TOOL(READELF, readelf)
+AC_PATH_TOOL(CPPFILT, c++filt)
+AC_PATH_TOOL(OBJCOPY, objcopy)
+
+AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 
 # This m4 will only be used if a system copy cannot be found. This is helpful
 # on systems where autotools are installed but the pkg-config macros are not in
@@ -270,6 +287,7 @@ case $host in
          fi
        fi
 
+       AC_PATH_PROGS([RSVG_CONVERT], [rsvg-convert rsvg],rsvg-convert)
        AC_CHECK_PROG([BREW],brew, brew)
        if test x$BREW = xbrew; then
          dnl These Homebrew packages may be keg-only, meaning that they won't be found
@@ -303,6 +321,9 @@ case $host in
            AC_PATH_TOOL([INSTALLNAMETOOL], [install_name_tool], install_name_tool)
            AC_PATH_TOOL([OTOOL], [otool], otool)
            AC_PATH_PROGS([GENISOIMAGE], [genisoimage mkisofs],genisoimage)
+           AC_PATH_PROGS([RSVG_CONVERT], [rsvg-convert rsvg],rsvg-convert)
+           AC_PATH_PROGS([IMAGEMAGICK_CONVERT], [convert],convert)
+           AC_PATH_PROGS([TIFFCP], [tiffcp],tiffcp)
 
            dnl libtool will try to strip the static lib, which is a problem for
            dnl cross-builds because strip attempts to call a hard-coded ld,
@@ -424,8 +445,8 @@ if test x$use_hardening != xno; then
 
   if test x$TARGET_OS != xwindows; then
     # All windows code is PIC, forcing it on just adds useless compile warnings
-    AX_CHECK_COMPILE_FLAG([-fPIE],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fPIE"])
-    AX_CHECK_LINK_FLAG([[-pie]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -pie"])
+    AX_CHECK_COMPILE_FLAG([-fPIC],[HARDENED_CXXFLAGS="$HARDENED_CXXFLAGS -fPIC"])
+    AX_CHECK_LINK_FLAG([[-pic]], [HARDENED_LDFLAGS="$HARDENED_LDFLAGS -pic"])
   fi
 
   case $host in
@@ -893,6 +914,7 @@ AC_SUBST(MINIUPNPC_LIBS)
 AC_CONFIG_FILES([Makefile src/Makefile share/setup.nsi share/qt/Info.plist src/test/buildenv.py])
 AC_CONFIG_FILES([qa/pull-tester/run-bitcoind-for-test.sh],[chmod +x qa/pull-tester/run-bitcoind-for-test.sh])
 AC_CONFIG_FILES([qa/pull-tester/tests-config.sh],[chmod +x qa/pull-tester/tests-config.sh])
+AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
 
 dnl boost's m4 checks do something really nasty: they export these vars. As a
 dnl result, they leak into secp256k1's configure and crazy things happen.
